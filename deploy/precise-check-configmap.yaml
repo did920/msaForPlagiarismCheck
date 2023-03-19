@@ -1,0 +1,166 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: client-precisecheck-properties
+data:
+  precisecheck-properties: |
+    spring:
+      application:
+        name: plagiarism-precise-check
+  
+      config:
+        activate:
+          on-profile: prod
+    
+      kafka:
+        bootstrap-servers:
+          - 115.68.157.201:9092
+          - 115.68.157.202:9092
+          - 115.68.157.203:9092
+        producer:
+          key-serializer: org.apache.kafka.common.serialization.StringSerializer
+          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+          acks: all
+        consumer:
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+          max-poll-records: 1
+          candidate:
+            group-id: plagiarism-precisecheck-candidate
+          copyratio:
+            group-id: plagiarism-precisecheck-copyratio
+          properties:
+            max.poll.interval.ms: 1800000
+            session.timeout.ms: 180000
+            group.instance.id: ${spring.application.name}-result-1
+          heartbeat-interval: 60000
+        listener:
+          concurrency: 3
+          ack-mode: manual_immediate
+        properties:
+          spring.json.trusted.packages: com.muhayu.*
+    
+      copykiller:
+        datasource:
+          hikari:
+            jdbc-url: jdbc:mariadb://115.68.157.66:3306/copykiller?characterEncoding=utf8
+            username: copykiller2018
+            password: vlfTkfrl!1
+            driver-class-name: org.mariadb.jdbc.Driver
+            connection-test-query: select 1
+            minimum-idle: 5
+            maximum-pool-size: 10
+            pool-name: SpringBootJPAHikariCP1
+            idle-timeout: 10000
+            connection-timeout: 10000
+            validation-timeout: 10000
+            max-lifetime: 580000
+            data-source-properties:
+              cachePrepStmts: true
+              prepStmtCacheSize: 250
+              prepStmtCacheSqlLimit: 2048
+              useServerPrepStmts: true
+              useLocalSessionState: true
+              useLocalTransactionState: true
+              rewriteBatchedStatements: true
+              cacheResultSetMetadata: true
+              cacheServerConfiguration: true
+              elideSetAutoCommits: true
+              maintainTimeStats: false
+      ckpass:
+        datasource:
+          hikari:
+            jdbc-url: jdbc:mariadb://115.68.157.196:3306/jasoseo?characterEncoding=utf8
+            username: jasoseo2021
+            password: vlftkfrl33#@
+            driver-class-name: org.mariadb.jdbc.Driver
+            connection-test-query: select 1
+            minimum-idle: 5
+            maximum-pool-size: 10
+            pool-name: SpringBootJPAHikariCP2
+            idle-timeout: 10000
+            connection-timeout: 10000
+            validation-timeout: 10000
+            max-lifetime: 580000
+            data-source-properties:
+              cachePrepStmts: true
+              prepStmtCacheSize: 250
+              prepStmtCacheSqlLimit: 2048
+              useServerPrepStmts: true
+              useLocalSessionState: true
+              useLocalTransactionState: true
+              rewriteBatchedStatements: true
+              cacheResultSetMetadata: true
+              cacheServerConfiguration: true
+              elideSetAutoCommits: true
+              maintainTimeStats: false
+    
+      sleuth:
+        sampler:
+          probability: 1.0
+        enabled: true
+        scheduled:
+          enabled: false
+      # properties for zipkin
+      zipkin:
+        base-url: http://115.68.157.183:9411
+        enabled: true
+        sender:
+          type: kafka
+    
+    server:
+      port: 8081
+      undertow:
+        accesslog:
+          dir: logs/
+          enabled: true
+    
+    logging:
+      file:
+        name: logs/plagiarism-precisecheck.log
+    
+    plagiarism-check:
+      client:
+        agent-ticket:
+          url: http://ticket-ticketer.plagiarism-agent.svc.cluster.local:8080
+          path: ticket
+        agent-sentence:
+          url: http://sentence-extractor.plagiarism-agent.svc.cluster.local:8080
+          path: sentence
+        agent-window:
+          url: http://window.plagiarism-agent.svc.cluster.local:8080
+          path: window
+    
+        check-property:
+          api: http://www.copykiller.co.kr/?module=copykiller&act=procGetCheckPropertyList
+          api-pass: http://ckpass.copykiller.com/?module=copykiller&act=procGetCheckPropertyList
+      process:
+        api-success: http://www.copykiller.co.kr/?module=copykiller&act=successPlagiarism
+        api-failure: http://www.copykiller.co.kr/?module=copykiller&act=failurePlagiarism
+    
+      candidate:
+        producer:
+          produce-topic: queuing.plagiarism-check.candidate-search.request
+          fixed-delay: 3000
+          bridge-count: 10
+    
+        consumer:
+          consume-topic-pattern: queuing.plagiarism-check.candidate-search.+?.response
+          consume-topic-lite: queuing.plagiarism-check.candidate-search.lite.response
+          consume-topic-campus: queuing.plagiarism-check.candidate-search.campus.response
+          consume-topic-bridge: queuing.plagiarism-check.candidate-search.bridge.response
+          consume-topic-source: queuing.plagiarism-check.candidate-search.source.response
+          consume-topic-ckpass: queuing.plagiarism-check.candidate-search.ckpass.response
+    
+      copyratio:
+        producer:
+          produce-topic: queuing.plagiarism-check.precise-check.request
+    
+        consumer:
+          consume-topic-pattern: queuing.plagiarism-check.precise-check.+?.response
+          consume-topic-lite: queuing.plagiarism-check.precise-check.lite.response
+          consume-topic-campus: queuing.plagiarism-check.precise-check.campus.response
+          consume-topic-bridge: queuing.plagiarism-check.precise-check.bridge.response
+          consume-topic-source: queuing.plagiarism-check.precise-check.source.response
+          consume-topic-ckpass: queuing.plagiarism-check.precise-check.ckpass.response
+    

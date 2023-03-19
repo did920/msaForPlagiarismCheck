@@ -1,0 +1,122 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: plagiarism-gateway
+  namespace: plagiarism-agent
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*"
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: plagiarism-service
+  namespace: plagiarism-agent
+spec:
+  hosts:
+    #- "dev.plagiarism-agent.com"
+    - "*"
+  gateways:
+    - plagiarism-gateway
+  http:
+    - match:
+        - uri:
+            prefix: /window
+      route:
+        - destination:
+            host: window
+            port:
+              number: 8080
+    - match:
+        - uri:
+            prefix: /sentence
+      route:
+        - destination:
+            host: sentence-extractor
+            port:
+              number: 8080
+    - match:
+        - uri:
+            prefix: /ticket
+      route:
+        - destination:
+            host: ticket-ticketer
+            port:
+              number: 8080
+    - match:
+        - uri:
+            prefix: /extract/api/v1
+      route:
+        - destination:
+            host: extractor-client
+            port:
+              number: 8080
+    - match:
+        - uri:
+            prefix: /candidate/api/v1
+      route:
+        - destination:
+            host: precisecheck-client
+            port:
+              number: 8080
+    - match:
+        - uri:
+            prefix: /api/v1
+      route:
+        - destination:
+            host: restapi-client
+            port:
+              number: 8080
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: plagiarism-dsr
+  namespace: plagiarism-agent
+spec:
+  host: restapi-client
+  trafficPolicy:
+    connectionPool:
+      http:
+        http2MaxRequests: 100
+    loadBalancer:
+      simple: LEAST_CONN
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 2m
+      maxEjectionPercent: 50
+
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: window-destination-rule
+  namespace: plagiarism-agent
+spec:
+  host: window
+  trafficPolicy:
+    connectionPool:
+      http:
+        maxRequestsPerConnection: 16
+        http2MaxRequests: 1000
+      tcp:
+        maxConnections: 200
+    loadBalancer:
+      simple: LEAST_CONN
+    outlierDetection:
+      baseEjectionTime: 2m
+      consecutive5xxErrors: 5
+      interval: 5s
+      maxEjectionPercent: 50
+
+

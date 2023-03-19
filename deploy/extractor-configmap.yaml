@@ -1,0 +1,145 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: client-extractor-properties
+data:
+  extractor-properties: |
+    spring:
+      application:
+        name: plagiarism-client-extractor
+    
+      config:
+        activate:
+          on-profile: prod
+    
+      kafka:
+        bootstrap-servers:
+          - 115.68.157.201:9092
+          - 115.68.157.202:9092
+          - 115.68.157.203:9092
+        consumer:
+          properties:
+            max.poll.interval.ms: 60000
+            session.timeout.ms: 180000
+          heartbeat-interval: 60000
+    
+      copykiller:
+        datasource:
+          hikari:
+            # 개발
+            #jdbc-url: jdbc:mariadb://115.68.157.39:3306/copykiller?characterEncoding=utf8
+            #username: unit2
+            #password: apxkqjtm2!
+            # 운영
+            jdbc-url: jdbc:mariadb://115.68.157.66:3306/copykiller?characterEncoding=utf8
+            username: copykiller2018
+            password: vlfTkfrl!1
+            driver-class-name: org.mariadb.jdbc.Driver
+            connection-test-query: select 1
+            minimum-idle: 5
+            maximum-pool-size: 10
+            pool-name: SpringBootJPAHikariCP1
+            idle-timeout: 10000
+            connection-timeout: 10000
+            validation-timeout: 10000
+            max-lifetime: 580000
+            data-source-properties:
+              cachePrepStmts: true
+              prepStmtCacheSize: 250
+              prepStmtCacheSqlLimit: 2048
+              useServerPrepStmts: true
+              useLocalSessionState: true
+              useLocalTransactionState: true
+              rewriteBatchedStatements: true
+              cacheResultSetMetadata: true
+              cacheServerConfiguration: true
+              elideSetAutoCommits: true
+              maintainTimeStats: false
+      ckpass:
+        datasource:
+          hikari:
+            # 개발
+            #jdbc-url: jdbc:mariadb://115.68.157.39:3306/ckpass?characterEncoding=utf8
+            #username: unit2
+            #password: apxkqjtm2!
+            # 운영
+            jdbc-url: jdbc:mariadb://115.68.157.196:3306/jasoseo?characterEncoding=utf8
+            username: jasoseo2021
+            password: vlftkfrl33#@
+            driver-class-name: org.mariadb.jdbc.Driver
+            connection-test-query: select 1
+            minimum-idle: 5
+            maximum-pool-size: 10
+            pool-name: SpringBootJPAHikariCP2
+            idle-timeout: 10000
+            connection-timeout: 10000
+            validation-timeout: 10000
+            max-lifetime: 580000
+            data-source-properties:
+              cachePrepStmts: true
+              prepStmtCacheSize: 250
+              prepStmtCacheSqlLimit: 2048
+              useServerPrepStmts: true
+              useLocalSessionState: true
+              useLocalTransactionState: true
+              rewriteBatchedStatements: true
+              cacheResultSetMetadata: true
+              cacheServerConfiguration: true
+              elideSetAutoCommits: true
+              maintainTimeStats: false
+    
+      sleuth:
+        sampler:
+          probability: 1.0
+        enabled: true
+        scheduled:
+          enabled: false
+    
+      zipkin:
+        base-url: http://115.68.157.183:9411
+        enabled: true
+        sender:
+          type: kafka
+    
+    feign:
+      client:
+        config:
+          default:
+            connectTimeout: 60000
+            readTimeout: 60000
+    
+    server:
+      port: 8081
+      undertow:
+        accesslog:
+          dir: logs/
+          enabled: true
+    
+    logging:
+      file:
+        name: logs/plagiarism-check-extractor.log
+    
+    plagiarism-check:
+      client:
+        agent-ticket:
+          url: http://ticket-ticketer.plagiarism-agent.svc.cluster.local:8080
+          path: /ticket
+        agent-sentence:
+          url: http://sentence-extractor.plagiarism-agent.svc.cluster.local:8080
+          path: /sentence
+        agent-window:
+          url: http://window.plagiarism-agent.svc.cluster.local:8080
+          path: /window
+        document:
+          api: http://www.copykiller.co.kr/?module=copykiller&act=procNotCheckedDocument
+          fixed-delay: 600000
+        check-property:
+          api: http://www.copykiller.co.kr/?module=copykiller&act=procGetCheckPropertyList
+          api-pass: http://ckpass.copykiller.com/?module=copykiller&act=procGetCheckPropertyList
+      process:
+        api-validator: http://www.copykiller.co.kr/?module=copykiller&act=validatePlagiarism
+      extract:
+        concurrent:
+          count: 2
+
+

@@ -1,0 +1,175 @@
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: extractor-precise-ise
+  namespace: plagiarism-agent
+spec:
+  hosts:
+    - ise.extractor.service
+  addresses:
+    - 115.68.158.77
+  location: MESH_EXTERNAL
+  ports:
+    - number: 2112
+      name: tcp2112
+      protocol: TCP
+      targetPort: 2112
+  resolution: STATIC
+  endpoints:
+    - address: 115.68.158.77
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: coc-ise
+  namespace: plagiarism-agent
+spec:
+  hosts:
+    - ise.coc.service
+  addresses:
+    - 115.68.158.77
+  location: MESH_EXTERNAL
+  ports:
+    - number: 2113
+      name: tcp2113
+      protocol: TCP
+      targetPort: 2113
+  resolution: STATIC
+  endpoints:
+    - address: 115.68.158.77
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: blackhole-ise
+  namespace: plagiarism-agent
+spec:
+  hosts:
+    - ise.blackhole.service
+  addresses:
+    - 115.68.158.77
+  location: MESH_EXTERNAL
+  ports:
+    - number: 2111
+      name: tcp2111
+      protocol: TCP
+      targetPort: 2111
+  resolution: STATIC
+  endpoints:
+    - address: 115.68.158.77
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: kafka
+  namespace: plagiarism-agent
+spec:
+  hosts:
+    - prod.kafka.service
+  addresses:
+    - 115.68.157.201
+    - 115.68.157.202
+    - 115.68.157.203
+  location: MESH_EXTERNAL
+  ports:
+    - number: 9092
+      name: tcp9092
+      protocol: TCP
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: plagiarism-db
+  namespace: plagiarism-agent
+spec:
+  hosts:
+    - prod.plagiarism.db
+  addresses:
+    - 115.68.158.74
+  location: MESH_EXTERNAL
+  ports:
+    - number: 3306
+      name: tcp3306
+      protocol: TCP
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: copykiller-db
+  namespace: plagiarism-agent
+spec:
+  hosts:
+    - prod.copykiller.db
+  addresses:
+    - 115.68.157.66
+  location: MESH_EXTERNAL
+  ports:
+    - number: 3306
+      name: tcp3306
+      protocol: TCP
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: elastic-apm-se
+  namespace: plagiarism-agent
+spec:
+  hosts:
+    - apm.elastic.service
+  addresses:
+    - 115.68.158.11
+  location: MESH_EXTERNAL
+  ports:
+    - number: 8200
+      name: tcp8200
+      protocol: TCP
+      targetPort: 8200
+  resolution: STATIC
+  endpoints:
+    - address: 115.68.158.11
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: group-ise
+  namespace: plagiarism-agent
+spec:
+  hosts:
+    - ise.group.service
+  addresses:
+    - 115.68.157.51
+  location: MESH_EXTERNAL
+  ports:
+    - number: 2111
+      name: tcp2111
+      protocol: TCP
+      targetPort: 2111
+  resolution: STATIC
+  endpoints:
+    - address: 115.68.157.51
+
+---
+
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: copykiller-was
+  namespace: plagiarism-agent
+spec:
+  addresses:
+    - 115.68.157.54
+  hosts:
+    - www.copykiller.co.kr
+  location: MESH_EXTERNAL
+  ports:
+    - number: 80
+      name: http
+      protocol: HTTP
+

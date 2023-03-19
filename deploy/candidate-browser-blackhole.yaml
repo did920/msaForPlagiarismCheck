@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: candidate-browser-blackhole
+  namespace: plagiarism-agent
+spec:
+  selector:
+    app: candidate-browser-blackhole
+  ports:
+    - port: 8080
+      targetPort: 8083
+  type: ClusterIP
+---
+#apiVersion: consul.hashicorp.com/v1alpha1
+#kind: ServiceDefaults
+#metadata:
+#  name: candidate-browser-blackhole
+#  namespace: plagiarism-agent
+#spec:
+#  protocol: "http"
+#---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: candidate-browser-blackhole
+  namespace: plagiarism-agent
+automountServiceAccountToken: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: candidate-browser-blackhole
+  namespace: plagiarism-agent
+  labels:
+    service: candidate-browser-blackhole
+    app: candidate-browser-blackhole
+spec:
+  replicas: 2
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      name: candidate-browser-blackhole
+      labels:
+        app: candidate-browser-blackhole
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - candidate-browser-group
+              topologyKey: "kubernetes.io/hostname"
+      serviceAccountName: candidate-browser-blackhole
+      containers:
+        - name: candidate-browser-blackhole
+          image: docker.muhayu.com/plagiarism-agent/candidate-browser:1.0.15.build-94
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8083
+          env:
+            - name: "SERVER_SERVLET_CONTEXT_PATH"
+              value: "/candidate-browser-blackhole"
+            - name: "JAVA_OPTION"
+              value: "-javaagent:apm-agent.jar -XX:MaxRAMPercentage=75.0 -DPROFILE_TYPE=black_hole -Delastic.apm.service_name=candidate-browser-blackhole -Delastic.apm.server_urls=http://115.68.158.11:8200 -Delastic.apm.application_packages=com.muhayu -Delastic.apm.log_ecs_reformatting=SHADE -Delastic.apm.log_level=INFO -XX:ActiveProcessorCount=24"
+            - name: TZ
+              valueFrom:
+                configMapKeyRef:
+                  key: TZ
+                  name: env-cm
+          resources:
+            requests:
+              cpu: 4000m
+              memory: 4G
+            limits:
+              cpu: 4000m
+              memory: 4G
+          readinessProbe:
+            tcpSocket:
+              port: 8083
+            failureThreshold: 3
+            initialDelaySeconds: 120
+          livenessProbe:
+            tcpSocket:
+              port: 8083
+            initialDelaySeconds: 120
+          volumeMounts:
+            - mountPath: /browser/properties
+              name: properties-file
+      restartPolicy: Always
+      volumes:
+        - name: properties-file
+          configMap:
+            name: properties-files
+            items:
+              - key: browser-blackhole-properties
+                path: application.yml
+  selector:
+    matchLabels:
+      app: candidate-browser-blackhole

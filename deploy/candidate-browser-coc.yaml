@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: candidate-browser-coc
+  namespace: plagiarism-agent
+spec:
+  selector:
+    app: candidate-browser-coc
+  ports:
+    - port: 8080
+      targetPort: 8083
+  type: ClusterIP
+---
+#apiVersion: consul.hashicorp.com/v1alpha1
+#kind: ServiceDefaults
+#metadata:
+#  name: candidate-browser-coc
+#  namespace: plagiarism-agent
+#spec:
+#  protocol: "http"
+#---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: candidate-browser-coc
+  namespace: plagiarism-agent
+automountServiceAccountToken: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: candidate-browser-coc
+  namespace: plagiarism-agent
+  labels:
+    service: candidate-browser-coc
+    app: candidate-browser-coc
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      name: candidate-browser-coc
+      labels:
+        app: candidate-browser-coc
+    spec:
+      serviceAccountName: candidate-browser-coc
+      containers:
+        - name: candidate-browser-coc
+          image: docker.muhayu.com/plagiarism-agent/candidate-browser:1.0.15.build-94
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8083
+          env:
+            - name: "SERVER_SERVLET_CONTEXT_PATH"
+              value: "/candidate-browser-coc"
+            - name: "JAVA_OPTION"
+              value: "-javaagent:apm-agent.jar -XX:MaxRAMPercentage=75.0 -DPROFILE_TYPE=coc -Delastic.apm.service_name=candidate-browser-coc -Delastic.apm.server_urls=http://115.68.158.11:8200 -Delastic.apm.application_packages=com.muhayu -Delastic.apm.log_ecs_reformatting=SHADE -Delastic.apm.log_level=INFO -XX:ActiveProcessorCount=24"
+            - name: TZ
+              valueFrom:
+                configMapKeyRef:
+                  key: TZ
+                  name: env-cm
+          resources:
+            requests:
+              cpu: 2000m
+              memory: 2G
+            limits:
+              cpu: 2000m
+              memory: 2G
+          readinessProbe:
+            tcpSocket:
+              port: 8083
+            failureThreshold: 3
+            initialDelaySeconds: 120
+          livenessProbe:
+            tcpSocket:
+              port: 8083
+            initialDelaySeconds: 120
+          volumeMounts:
+            - mountPath: /browser/properties
+              name: properties-file
+      restartPolicy: Always
+      volumes:
+        - name: properties-file
+          configMap:
+            name: properties-files
+            items:
+              - key: browser-coc-properties
+                path: application.yml
+  selector:
+    matchLabels:
+      app: candidate-browser-coc

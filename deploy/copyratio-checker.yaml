@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: copyratio-checker
+  namespace: plagiarism-agent
+spec:
+  selector:
+    app: copyratio-checker
+  ports:
+    - port: 8080
+      targetPort: 8084
+  type: ClusterIP
+---
+#apiVersion: consul.hashicorp.com/v1alpha1
+#kind: ServiceDefaults
+#metadata:
+#  name: copyratio-checker
+#  namespace: plagiarism-agent
+#spec:
+#  protocol: "http"
+#---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: copyratio-checker
+  namespace: plagiarism-agent
+automountServiceAccountToken: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: copyratio-checker
+  namespace: plagiarism-agent
+  labels:
+    app: copyratio-checker
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      name: copyratio-checker
+      labels:
+        app: copyratio-checker
+    spec:
+      serviceAccountName: copyratio-checker
+      containers:
+        - name: copyratio-checker
+          image: docker.muhayu.com/plagiarism-agent/copyratio-checker:1.0.15.build-76
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8084
+          env:
+            - name: "SERVER_SERVLET_CONTEXT_PATH"
+              value: "/copyratio-checker"
+            - name: "JAVA_OPTION"
+              value: "-javaagent:apm-agent.jar -XX:MaxRAMPercentage=75.0 -Delastic.apm.service_name=copyratio-checker -Delastic.apm.server_urls=http://115.68.158.11:8200 -Delastic.apm.application_packages=com.muhayu -Delastic.apm.log_ecs_reformatting=SHADE -Delastic.apm.log_level=INFO  -XX:ActiveProcessorCount=48"
+            - name: TZ
+              valueFrom:
+                configMapKeyRef:
+                  key: TZ
+                  name: env-cm
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 4G
+            limits:
+              cpu: 1000m
+              memory: 4G
+          readinessProbe:
+            tcpSocket:
+              port: 8084
+            failureThreshold: 3
+            initialDelaySeconds: 120
+          livenessProbe:
+            tcpSocket:
+              port: 8084
+            initialDelaySeconds: 120
+          volumeMounts:
+            - mountPath: /checker/properties
+              name: properties-file
+      restartPolicy: Always
+      volumes:
+        - name: properties-file
+          configMap:
+            name: properties-files
+            items:
+              - key: checker-properties
+                path: application.yml
+  selector:
+    matchLabels:
+      app: copyratio-checker

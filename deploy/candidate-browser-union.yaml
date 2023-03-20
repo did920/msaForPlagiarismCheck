@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: candidate-browser-union
+  namespace: plagiarism-agent
+spec:
+  selector:
+    app: candidate-browser-union
+  ports:
+    - port: 8080
+      targetPort: 8083
+  type: ClusterIP
+---
+#apiVersion: consul.hashicorp.com/v1alpha1
+#kind: ServiceDefaults
+#metadata:
+#  name: candidate-browser-union
+#  namespace: plagiarism-agent
+#spec:
+#  protocol: "http"
+#---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: candidate-browser-union
+  namespace: plagiarism-agent
+automountServiceAccountToken: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: candidate-browser-union
+  namespace: plagiarism-agent
+  labels:
+    service: candidate-browser-union
+    app: candidate-browser-union
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      name: candidate-browser-union
+      labels:
+        app: candidate-browser-union
+    spec:
+      serviceAccountName: candidate-browser-union
+      containers:
+        - name: candidate-browser-union
+          image: docker.muhayu.com/plagiarism-agent/candidate-browser:1.0.15.build-94
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8083
+          env:
+            - name: "SERVER_SERVLET_CONTEXT_PATH"
+              value: "/candidate-browser-union"
+            - name: "JAVA_OPTION"
+              value: "-javaagent:apm-agent.jar -XX:MaxRAMPercentage=75.0 -DPROFILE_TYPE=union -Delastic.apm.service_name=candidate-browser-union -Delastic.apm.server_urls=http://115.68.158.11:8200 -Delastic.apm.application_packages=com.muhayu -Delastic.apm.log_ecs_reformatting=SHADE -Delastic.apm.log_level=INFO -XX:ActiveProcessorCount=16"
+            - name: TZ
+              valueFrom:
+                configMapKeyRef:
+                  key: TZ
+                  name: env-cm
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 2G
+            limits:
+              cpu: 1000m
+              memory: 2G
+          readinessProbe:
+            tcpSocket:
+              port: 8083
+            failureThreshold: 3
+            initialDelaySeconds: 120
+          livenessProbe:
+            tcpSocket:
+              port: 8083
+            initialDelaySeconds: 120
+          volumeMounts:
+            - mountPath: /browser/properties
+              name: properties-file
+      restartPolicy: Always
+      volumes:
+        - name: properties-file
+          configMap:
+            name: properties-files
+            items:
+              - key: browser-union-properties
+                path: application.yml
+  selector:
+    matchLabels:
+      app: candidate-browser-union

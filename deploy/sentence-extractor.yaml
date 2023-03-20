@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentence-extractor
+  namespace: plagiarism-agent
+spec:
+  selector:
+    app: sentence-extractor
+  ports:
+    - port: 8080
+      targetPort: 8082
+  type: ClusterIP
+---
+#apiVersion: consul.hashicorp.com/v1alpha1
+#kind: ServiceDefaults
+#metadata:
+#  name: sentence-extractor
+#  namespace: plagiarism-agent
+#spec:
+#  protocol: "tcp"
+#---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sentence-extractor
+  namespace: plagiarism-agent
+automountServiceAccountToken: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentence-extractor
+  namespace: plagiarism-agent
+  labels:
+    app: sentence-extractor
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: sentence-extractor
+      labels:
+        app: sentence-extractor
+    spec:
+      serviceAccountName: sentence-extractor
+      containers:
+        - name: sentence-extractor
+          image: docker.muhayu.com/plagiarism-agent/sentence-extractor:1.0.15.build-84
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8082
+          env:
+            - name: "SERVER_SERVLET_CONTEXT_PATH"
+              value: "/sentence"
+            - name: "JAVA_OPTION"
+              value: "-javaagent:apm-agent.jar -XX:MaxRAMPercentage=75.0 -Delastic.apm.service_name=sentence-extractor -Delastic.apm.server_urls=http://115.68.158.11:8200 -Delastic.apm.application_packages=com.muhayu -Delastic.apm.log_ecs_reformatting=SHADE -Delastic.apm.log_level=INFO"
+            - name: TZ
+              valueFrom:
+                configMapKeyRef:
+                  key: TZ
+                  name: env-cm
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 4G
+            limits:
+              cpu: 1000m
+              memory: 4G
+          readinessProbe:
+            tcpSocket:
+              port: 8082
+            failureThreshold: 3
+            initialDelaySeconds: 120
+          livenessProbe:
+            tcpSocket:
+              port: 8082
+            initialDelaySeconds: 120
+          volumeMounts:
+            - mountPath: /extractor/properties
+              name: properties-file
+      restartPolicy: Always
+      volumes:
+        - name: properties-file
+          configMap:
+            name: properties-files
+            items:
+              - key: extractor-properties
+                path: application.yml
+  selector:
+    matchLabels:
+      app: sentence-extractor

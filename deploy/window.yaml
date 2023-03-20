@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: window
+  namespace: plagiarism-agent
+spec:
+  selector:
+    app: window
+  ports:
+    - port: 8080
+      targetPort: 7778
+  type: ClusterIP
+---
+#apiVersion: consul.hashicorp.com/v1alpha1
+#kind: ServiceDefaults
+#metadata:
+#  name: window
+#  namespace: plagiarism-agent
+#spec:
+#  protocol: "http"
+#---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: window
+  namespace: plagiarism-agent
+automountServiceAccountToken: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: window
+  namespace: plagiarism-agent
+  labels:
+    app: window
+spec:
+  replicas: 2
+  template:
+    metadata:
+      name: window
+      labels:
+        app: window
+    spec:
+      serviceAccountName: window
+      containers:
+        - name: window
+          image: docker.muhayu.com/plagiarism-agent/window:1.0.15.build-85
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 7778
+          env:
+            - name: "SERVER_SERVLET_CONTEXT_PATH"
+              value: "/window"
+            - name: "JAVA_OPTION"
+              value: "-javaagent:apm-agent.jar -XX:MaxRAMPercentage=75.0 -Delastic.apm.service_name=window -Delastic.apm.server_urls=http://115.68.158.11:8200 -Delastic.apm.application_packages=com.muhayu -Delastic.apm.log_ecs_reformatting=SHADE -Delastic.apm.log_level=INFO"
+            - name: TZ
+              valueFrom:
+                configMapKeyRef:
+                  key: TZ
+                  name: env-cm
+          resources:
+            requests:
+              cpu: 2000m
+              memory: 4G
+            limits:
+              cpu: 2000m
+              memory: 4G
+          readinessProbe:
+            tcpSocket:
+              port: 7778
+            failureThreshold: 3
+            initialDelaySeconds: 120
+          livenessProbe:
+            tcpSocket:
+              port: 7778
+            initialDelaySeconds: 120
+          volumeMounts:
+            - mountPath: /window/properties
+              name: properties-file
+      restartPolicy: Always
+      volumes:
+        - name: properties-file
+          configMap:
+            name: properties-files
+            items:
+              - key:   window-properties
+                path: application.yml
+  selector:
+    matchLabels:
+      app: window

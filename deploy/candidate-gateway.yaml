@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: candidate-gateway
+  namespace: plagiarism-agent
+spec:
+  selector:
+    app: candidate-gateway
+  ports:
+    - port: 8080
+      targetPort: 8081
+  type: ClusterIP
+---
+#apiVersion: consul.hashicorp.com/v1alpha1
+#kind: ServiceDefaults
+#metadata:
+#  name: candidate-gateway
+#  namespace: plagiarism-agent
+#spec:
+#  protocol: "http"
+#---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: candidate-gateway
+  namespace: plagiarism-agent
+automountServiceAccountToken: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: candidate-gateway
+  namespace: plagiarism-agent
+  labels:
+    app: candidate-gateway
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: candidate-gateway
+      labels:
+        app: candidate-gateway
+    spec:
+      serviceAccountName: candidate-gateway
+      containers:
+        - name: candidate-gateway
+          image: docker.muhayu.com/plagiarism-agent/candidate-gateway:1.0.15.build-77
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+          env:
+            - name: "SERVER_SERVLET_CONTEXT_PATH"
+              value: "/candidate-gateway"
+            - name: "JAVA_OPTION"
+              value: "-javaagent:apm-agent.jar -XX:MaxRAMPercentage=75.0 -Delastic.apm.service_name=candidate-gateway -Delastic.apm.server_urls=http://115.68.158.11:8200 -Delastic.apm.application_packages=com.muhayu -Delastic.apm.log_ecs_reformatting=SHADE -Delastic.apm.log_level=INFO"
+            - name: TZ
+              valueFrom:
+                configMapKeyRef:
+                  key: TZ
+                  name: env-cm
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 2G
+            limits:
+              cpu: 1000m
+              memory: 2G
+          readinessProbe:
+            tcpSocket:
+              port: 8081
+            failureThreshold: 3
+            initialDelaySeconds: 120
+          livenessProbe:
+            tcpSocket:
+              port: 8081
+            initialDelaySeconds: 120
+          volumeMounts:
+            - mountPath: /gateway/properties
+              name: properties-file
+      restartPolicy: Always
+      volumes:
+        - name: properties-file
+          configMap:
+            name: properties-files
+            items:
+              - key: gateway-properties
+                path: application.yml
+  selector:
+    matchLabels:
+      app: candidate-gateway

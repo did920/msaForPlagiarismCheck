@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ticket-ticketer
+  namespace: plagiarism-agent
+spec:
+  selector:
+    app: ticket-ticketer
+  ports:
+    - port: 8080
+      targetPort: 8089
+  type: ClusterIP
+---
+#apiVersion: consul.hashicorp.com/v1alpha1
+#kind: ServiceDefaults
+#metadata:
+#  name: ticket-ticketer
+#  namespace: plagiarism-agent
+#spec:
+#  protocol: "http"
+#---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ticket-ticketer
+  namespace: plagiarism-agent
+automountServiceAccountToken: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ticket-ticketer
+  namespace: plagiarism-agent
+  labels:
+    app: ticket-ticketer
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: ticket-ticketer
+      labels:
+        app: ticket-ticketer
+    spec:
+      serviceAccountName: ticket-ticketer
+      containers:
+        - name: ticket-ticketer
+          image: docker.muhayu.com/plagiarism-agent/ticket-ticketer:1.0.15.build-75
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8089
+          env:
+            - name: "SERVER_SERVLET_CONTEXT_PATH"
+              value: "/ticket"
+            - name: "JAVA_OPTION"
+              value: "-javaagent:apm-agent.jar -XX:MaxRAMPercentage=75.0 -Delastic.apm.service_name=ticket-ticketer -Delastic.apm.server_urls=http://115.68.158.11:8200 -Delastic.apm.application_packages=com.muhayu -Delastic.apm.log_ecs_reformatting=SHADE -Delastic.apm.log_level=INFO"
+            - name: TZ
+              valueFrom:
+                configMapKeyRef:
+                  key: TZ
+                  name: env-cm
+          resources:
+            requests:
+              cpu: 2000m
+              memory: 4G
+            limits:
+              cpu: 2000m
+              memory: 4G
+          readinessProbe:
+            tcpSocket:
+              port: 8089
+            failureThreshold: 3
+            initialDelaySeconds: 120
+          livenessProbe:
+            tcpSocket:
+              port: 8089
+            initialDelaySeconds: 120
+          volumeMounts:
+            - mountPath: /ticketer/properties
+              name: properties-file
+      volumes:
+        - name: properties-file
+          configMap:
+            name: properties-files
+            items:
+              - key:   ticket-properties
+                path: application.yml
+      restartPolicy: Always
+  selector:
+    matchLabels:
+      app: ticket-ticketer
